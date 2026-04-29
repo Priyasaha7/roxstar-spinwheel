@@ -114,6 +114,10 @@ async function markAborted(id: Types.ObjectId) {
     .exec();
 }
 
+async function findByStatus(status: SpinWheelStatus) {
+  return SpinWheelModel.findOne({ status }).lean().exec();
+}
+
 export default {
   findActive,
   findById,
@@ -125,4 +129,5 @@ export default {
   advanceEliminationIndex,
   markFinished,
   markAborted,
+  findByStatus,
 };

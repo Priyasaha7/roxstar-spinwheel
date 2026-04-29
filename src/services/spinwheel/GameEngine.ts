@@ -33,15 +33,25 @@ function shuffleArray<T>(arr: T[]): T[] {
 export async function scheduleAutoStart(spinWheelId: Types.ObjectId) {
   const id = spinWheelId.toString();
 
+  if (activeTimers.has(id)) {
+    logger.warn(`[GameEngine] Timer already exists for wheel ${id}, skipping`);
+    return;
+  }
+
   const timer = setTimeout(async () => {
     try {
       const wheel = await SpinWheelRepo.findById(spinWheelId);
-      if (!wheel || wheel.status !== SpinWheelStatus.WAITING) return;
 
-      // Fixed: participantsCount
+      if (!wheel || wheel.status !== SpinWheelStatus.WAITING) {
+        logger.info(
+          `[GameEngine] Timer fired but wheel ${id} is no longer WAITING`,
+        );
+        return;
+      }
+
       if (wheel.participantsCount < gameConfig.minParticipants) {
         logger.info(
-          `[GameEngine] Wheel ${id} aborted — not enough participants`,
+          `[GameEngine] Wheel ${id} aborted — only ${wheel.participantsCount} participants`,
         );
         await abortGame(spinWheelId);
       } else {
@@ -49,7 +59,7 @@ export async function scheduleAutoStart(spinWheelId: Types.ObjectId) {
         await startGame(spinWheelId);
       }
     } catch (err) {
-      logger.error(`[GameEngine] Auto-start error for ${id}`, err);
+      logger.error(`[GameEngine] Auto-start error for wheel ${id}`, err);
     }
   }, gameConfig.autoStartDelayMs);
 
@@ -66,12 +76,19 @@ export async function startGame(spinWheelId: Types.ObjectId) {
     activeTimers.delete(id);
   }
 
-  const participants = await ParticipantRepo.findBySpinWheel(spinWheelId);
-  if (participants.length < gameConfig.minParticipants) {
-    throw new Error(`Need at least ${gameConfig.minParticipants} participants`);
+  if (eliminationIntervals.has(id)) {
+    logger.warn(`[GameEngine] Elimination already running for wheel ${id}`);
+    return;
   }
 
-  // Fixed: explicit any typing to satisfy map
+  const participants = await ParticipantRepo.findBySpinWheel(spinWheelId);
+  if (participants.length < gameConfig.minParticipants) {
+    throw new Error(
+      `Need at least ${gameConfig.minParticipants} participants to start`,
+    );
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userIds = participants.map((p: any) => p.userId as Types.ObjectId);
   const shuffled = shuffleArray(userIds);
   await SpinWheelRepo.setEliminationOrder(spinWheelId, shuffled);
@@ -80,9 +97,37 @@ export async function startGame(spinWheelId: Types.ObjectId) {
     spinWheelId: id,
     participantCount: participants.length,
   });
-  logger.info(`[GameEngine] Game started for wheel ${id}`);
+  logger.info(
+    `[GameEngine] Game started for wheel ${id} with ${participants.length} players`,
+  );
 
   runEliminationLoop(spinWheelId, shuffled);
+}
+
+export async function resumeActiveGame(spinWheelId: Types.ObjectId) {
+  const id = spinWheelId.toString();
+  const wheel = await SpinWheelRepo.findById(spinWheelId);
+  if (!wheel || wheel.status !== SpinWheelStatus.ACTIVE) return;
+
+  logger.info(
+    `[GameEngine] Resuming game ${id} from index ${wheel.currentEliminationIndex}`,
+  );
+
+  const remainingOrder = (wheel.eliminationSequence as Types.ObjectId[]).slice(
+    wheel.currentEliminationIndex,
+  );
+
+  if (remainingOrder.length <= 1) {
+    const activeParticipants = await ParticipantRepo.findActive(spinWheelId);
+    if (activeParticipants.length === 1) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const winnerId = (activeParticipants[0] as any).userId as Types.ObjectId;
+      await finishGame(spinWheelId, winnerId);
+    }
+    return;
+  }
+
+  runEliminationLoop(spinWheelId, remainingOrder);
 }
 
 function runEliminationLoop(
@@ -95,16 +140,23 @@ function runEliminationLoop(
 
   const interval = setInterval(async () => {
     try {
-      if (index >= eliminationOrder.length) {
+      if (remaining.size === 0 || index >= eliminationOrder.length) {
         clearInterval(interval);
         eliminationIntervals.delete(id);
+        logger.warn(`[GameEngine] Loop ended unexpectedly for wheel ${id}`);
         return;
       }
 
       const eliminatedId = eliminationOrder[index];
       index++;
 
-      if (!remaining.has(eliminatedId.toString())) return;
+      if (!remaining.has(eliminatedId.toString())) {
+        logger.warn(
+          `[GameEngine] ${eliminatedId} already eliminated, skipping`,
+        );
+        return;
+      }
+
       remaining.delete(eliminatedId.toString());
 
       await ParticipantRepo.markEliminated(spinWheelId, eliminatedId);
@@ -116,13 +168,12 @@ function runEliminationLoop(
       });
 
       logger.info(
-        `[GameEngine] Eliminated ${eliminatedId} from wheel ${id}. Remaining: ${remaining.size}`,
+        `[GameEngine] Eliminated ${eliminatedId}. Remaining: ${remaining.size}`,
       );
 
       if (remaining.size === 1) {
         clearInterval(interval);
         eliminationIntervals.delete(id);
-
         const winnerId = new Types.ObjectId([...remaining][0]);
         await finishGame(spinWheelId, winnerId);
       }
@@ -165,15 +216,31 @@ export async function abortGame(spinWheelId: Types.ObjectId) {
     eliminationIntervals.delete(id);
   }
 
-  await SpinWheelRepo.markAborted(spinWheelId);
+  const wheel = await SpinWheelRepo.findById(spinWheelId);
+  if (!wheel) return;
 
-  const participants = await ParticipantRepo.findBySpinWheel(spinWheelId);
-  const userIds = participants.map((p: any) => p.userId as Types.ObjectId);
-  await coinService.processRefunds(spinWheelId, userIds);
+  let userIdsToRefund: Types.ObjectId[];
+
+  if (wheel.status === SpinWheelStatus.WAITING) {
+    const participants = await ParticipantRepo.findBySpinWheel(spinWheelId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    userIdsToRefund = participants.map((p: any) => p.userId as Types.ObjectId);
+  } else {
+    const activeParticipants = await ParticipantRepo.findActive(spinWheelId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    userIdsToRefund = activeParticipants.map(
+      (p: any) => p.userId as Types.ObjectId,
+    );
+  }
+
+  await SpinWheelRepo.markAborted(spinWheelId);
+  await coinService.processRefunds(spinWheelId, userIdsToRefund);
 
   emit("game:aborted", id, {
     spinWheelId: id,
-    reason: "Not enough participants",
+    reason: "Game aborted by admin",
   });
-  logger.info(`[GameEngine] Game aborted and refunds issued for wheel ${id}`);
+  logger.info(
+    `[GameEngine] Game aborted. Refunded ${userIdsToRefund.length} participants`,
+  );
 }
