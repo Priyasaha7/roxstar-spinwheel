@@ -25,6 +25,8 @@ import schema from "./schema";
 import { Types } from "mongoose";
 import { gameConfig } from "../../config";
 
+import { joinRateLimiter } from "../../middlewares/rateLimit.middleware";
+
 const router = Router();
 
 router.use(authentication);
@@ -151,6 +153,38 @@ router.get(
     const spinWheelId = new Types.ObjectId(req.params.id);
     const participants = await ParticipantRepo.findBySpinWheel(spinWheelId);
     new SuccessResponse("Participants list.", participants).send(res);
+  }),
+);
+
+router.post(
+  "/:id/join",
+  joinRateLimiter, // <- Added middleware here
+  validator(schema.objectId, ValidationSource.PARAM),
+  asyncHandler(async (req: ProtectedRequest, res) => {
+    const spinWheelId = new Types.ObjectId(req.params.id);
+    const userId = req.user._id;
+
+    const wheel = await SpinWheelRepo.findById(spinWheelId);
+    if (!wheel) throw new NotFoundError("Spin wheel not found.");
+    if (wheel.status !== SpinWheelStatus.WAITING)
+      throw new BadRequestError(
+        "This spin wheel is no longer accepting participants.",
+      );
+
+    const alreadyJoined = await ParticipantRepo.findByUserAndWheel(
+      spinWheelId,
+      userId,
+    );
+    if (alreadyJoined)
+      throw new BadRequestError("You have already joined this spin wheel.");
+
+    await coinService.processEntryFee(userId, spinWheelId);
+    await ParticipantRepo.create(spinWheelId, userId);
+    await SpinWheelRepo.incrementParticipantCount(spinWheelId);
+
+    new SuccessMsgResponse(
+      "Successfully joined the spin wheel. Good luck!",
+    ).send(res);
   }),
 );
 
