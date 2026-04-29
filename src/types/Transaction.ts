@@ -1,19 +1,21 @@
 import { Types } from "mongoose";
 
 export enum TransactionType {
-  ENTRY_FEE = "entry_fee",
-  WINNER_PAYOUT = "winner_payout",
-  ADMIN_PAYOUT = "admin_payout",
-  APP_CUT = "app_cut",
-  REFUND = "refund",
+  ENTRY_FEE_DEBIT = "entry_fee_debit", // User paid to join
+  WINNER_POOL_CREDIT = "winner_pool_credit", // % goes to winner pool
+  ADMIN_POOL_CREDIT = "admin_pool_credit", // % goes to admin pool
+  APP_POOL_CREDIT = "app_pool_credit", // % goes to app pool
+  WINNER_PAYOUT = "winner_payout", // Winner receives pool
+  ADMIN_PAYOUT = "admin_payout", // Admin receives cut
+  REFUND = "refund", // Game aborted, coins returned
 }
 
 export default interface Transaction {
   _id: Types.ObjectId;
-  userId: Types.ObjectId; // Who is this transaction for
-  spinWheelId?: Types.ObjectId; // Which game caused it
+  userId: Types.ObjectId;
+  spinWheelId?: Types.ObjectId;
   type: TransactionType;
-  amount: number; // Negative for deductions (paying entry fee), positive for additions (winning)
+  amount: number;
   balanceBefore: number;
   balanceAfter: number;
   createdAt?: Date;
