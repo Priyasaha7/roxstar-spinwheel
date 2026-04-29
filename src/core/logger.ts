@@ -2,7 +2,7 @@ import { createLogger, transports, format } from "winston";
 import fs from "fs";
 import path from "path";
 import DailyRotateFile from "winston-daily-rotate-file";
-import { isProduction, logDirectory } from "../config.js";
+import { isProduction, logDirectory } from "../config";
 
 let dir = logDirectory;
 if (!dir) {
