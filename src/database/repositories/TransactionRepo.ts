@@ -20,4 +20,14 @@ async function create(
   });
 }
 
-export default { create };
+async function findByUser(userId: Types.ObjectId) {
+  return TransactionModel.find({ userId })
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
+}
+
+export default {
+  create,
+  findByUser,
+};
