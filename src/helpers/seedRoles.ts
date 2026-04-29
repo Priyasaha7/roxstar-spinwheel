@@ -17,7 +17,6 @@ async function seed() {
   }
 
   // Seed default game config: 70% winner, 20% admin, 10% app
-  // Fixed: Used 'Percentage' to match our schema and added the required 'version' field
   await GameConfigModel.findOneAndUpdate(
     { isActive: true },
     {

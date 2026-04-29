@@ -6,7 +6,9 @@
     "build": "tsc",
     "dev": "nodemon",
     "start": "node dist/index.js",
-    "generate-keys": "node -e \"const c=require('crypto');const{privateKey,publicKey}=c.generateKeyPairSync('rsa',{modulusLength:2048,publicKeyEncoding:{type:'spki',format:'pem'},privateKeyEncoding:{type:'pkcs8',format:'pem'}});require('fs').mkdirSync('keys', {recursive: true});require('fs').writeFileSync('keys/private.pem',privateKey);require('fs').writeFileSync('keys/public.pem',publicKey);console.log('Keys generated!');\""
+    "generate-keys": "node -e \"const c=require('crypto');const{privateKey,publicKey}=c.generateKeyPairSync('rsa',{modulusLength:2048,publicKeyEncoding:{type:'spki',format:'pem'},privateKeyEncoding:{type:'pkcs8',format:'pem'}});require('fs').mkdirSync('keys', {recursive: true});require('fs').writeFileSync('keys/private.pem',privateKey);require('fs').writeFileSync('keys/public.pem',publicKey);console.log('Keys generated!');\"",
+    "seed:apikey": "ts-node src/helpers/generateApiKey.ts",
+    "seed:roles": "ts-node src/helpers/seedRoles.ts"
   },
   "keywords": [],
   "author": "",
