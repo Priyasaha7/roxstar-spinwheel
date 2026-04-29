@@ -8,18 +8,24 @@ process.on("unhandledRejection", (reason, promise) => {
   process.exit(1);
 });
 
+import { createServer } from "http";
 import logger from "./core/logger";
 import { port } from "./config";
 import { connectDB } from "./database/index";
 import { app } from "./app";
+import { initSocketIO } from "./sockets/index";
 
 async function start() {
   try {
     await connectDB();
     logger.info("Database connected");
 
-    app.listen(port, () => {
+    const httpServer = createServer(app);
+    initSocketIO(httpServer);
+
+    httpServer.listen(port, () => {
       logger.info(`🚀 RoxStar Spin Wheel server running on port: ${port}`);
+      logger.info(`🔌 WebSocket server ready`);
     });
   } catch (err) {
     logger.error("Startup error", err);
