@@ -1,5 +1,5 @@
 import { Response } from "express";
-import { isProduction } from "../config.js";
+import { isProduction } from "../config";
 import {
   AuthFailureResponse,
   AccessTokenErrorResponse,
@@ -7,7 +7,7 @@ import {
   NotFoundResponse,
   BadRequestResponse,
   ForbiddenResponse,
-} from "./ApiResponse.js";
+} from "./ApiResponse";
 
 export enum ErrorType {
   BAD_TOKEN = "BadTokenError",
