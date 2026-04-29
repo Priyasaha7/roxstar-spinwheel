@@ -31,9 +31,25 @@ async function markEliminated(
     .exec();
 }
 
+async function findBySpinWheel(spinWheelId: Types.ObjectId) {
+  return ParticipantModel.find({ spinWheelId }).lean().exec();
+}
+
+async function markWinner(spinWheelId: Types.ObjectId, userId: Types.ObjectId) {
+  return ParticipantModel.findOneAndUpdate(
+    { spinWheelId, userId },
+    { $set: { isWinner: true } },
+    { new: true },
+  )
+    .lean()
+    .exec();
+}
+
 export default {
   create,
   findActive,
   findByUserAndWheel,
   markEliminated,
+  findBySpinWheel,
+  markWinner,
 };

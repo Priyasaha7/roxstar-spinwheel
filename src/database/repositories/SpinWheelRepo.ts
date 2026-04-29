@@ -104,6 +104,16 @@ async function markFinished(id: Types.ObjectId, winnerId: Types.ObjectId) {
     .exec();
 }
 
+async function markAborted(id: Types.ObjectId) {
+  return SpinWheelModel.findByIdAndUpdate(
+    id,
+    { $set: { status: SpinWheelStatus.ABORTED } },
+    { new: true },
+  )
+    .lean()
+    .exec();
+}
+
 export default {
   findActive,
   findById,
@@ -114,4 +124,5 @@ export default {
   setEliminationOrder,
   advanceEliminationIndex,
   markFinished,
+  markAborted,
 };
