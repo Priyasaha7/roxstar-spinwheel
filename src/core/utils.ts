@@ -1,4 +1,4 @@
-import User from "./../types/User";
+import User from "../types/User";
 import objectManipulator from "lodash";
 
 export const enum Header {
