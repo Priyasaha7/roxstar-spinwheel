@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment variables
+.env
+
+# RSA Keys
+keys/private.pem
+keys/public.pem
+
+# Logs
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
