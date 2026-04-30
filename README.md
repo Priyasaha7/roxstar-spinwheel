@@ -195,9 +195,9 @@ The financial engine relies on **atomic state transitions** to guarantee zero co
 │                     PLAYER JOINS                            │
 │                                                             │
 │  user.coins  ──debit──►  entry fee collected                │
-│                               │                            │
-│              ┌────────────────┼────────────────┐           │
-│              ▼                ▼                ▼           │
+│                               │                             │
+│              ┌────────────────┼────────────────┐            │
+│              ▼                ▼                ▼            │
 │        winnerPool(X%)   adminPool(Y%)    appPool(Z%)        │
 │       stored on SpinWheel document (cumulative per join)    │
 └─────────────────────────────────────────────────────────────┘
