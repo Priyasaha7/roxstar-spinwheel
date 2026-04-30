@@ -10,7 +10,7 @@ const schema = new Schema<SpinWheel>(
     status: {
       type: Schema.Types.String,
       enum: Object.values(SpinWheelStatus),
-      default: SpinWheelStatus.CREATED,
+      default: SpinWheelStatus.WAITING,
     },
     entryFee: { type: Schema.Types.Number, required: true },
 
