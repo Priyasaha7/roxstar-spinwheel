@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RoxStar Socket.IO Protocol</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap");
+
+      :root {
+        /* Standard Enterprise Dark Theme */
+        --bg: #0d1117;
+        --surface: #161b22;
+        --surface2: #21262d;
+        --border: #30363d;
+        --accent: #58a6ff;
+        --accent-subtle: rgba(88, 166, 255, 0.1);
+        --green: #2ea043;
+        --red: #f85149;
+        --warning: #d29922;
+        --text: #c9d1d9;
+        --text-strong: #ffffff;
+        --muted: #8b949e;
+        --font-sans:
+          "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica,
+          Arial, sans-serif;
+        --font-mono:
+          "JetBrains Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+      }
+
+      .wrap {
+        max-width: 1024px;
+        margin: 0 auto;
+        padding: 0 32px;
+      }
+
+      /* HEADER */
+      header {
+        padding: 48px 0 32px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 48px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+      }
+      .logo {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--text-strong);
+        letter-spacing: -0.5px;
+      }
+      .logo-sub {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-top: 4px;
+        font-family: var(--font-mono);
+      }
+      .live-badge {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-family: var(--font-mono);
+        color: var(--muted);
+      }
+      .live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+
+      /* SECTION TITLES */
+      .sec-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-strong);
+        margin-bottom: 24px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .section {
+        margin-bottom: 56px;
+      }
+
+      /* GRIDS & CARDS */
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 20px;
+      }
+      .card.warning {
+        border-left: 3px solid var(--warning);
+      }
+      .card.danger {
+        border-left: 3px solid var(--red);
+      }
+      .card h3 {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-strong);
+        margin-bottom: 8px;
+      }
+      .card p {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      /* EVENT CARDS */
+      .event-grid {
+        display: grid;
+        gap: 8px;
+      }
+      .event-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+      }
+      .event-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .event-header:hover {
+        background: var(--surface2);
+      }
+      .direction-badge {
+        font-family: var(--font-mono);
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .event-name {
+        font-family: var(--font-mono);
+        font-size: 0.85rem;
+        color: var(--accent);
+        font-weight: 500;
+        width: 150px;
+      }
+      .event-desc {
+        font-size: 0.85rem;
+        color: var(--muted);
+        flex: 1;
+      }
+      .event-body {
+        display: none;
+        border-top: 1px solid var(--border);
+        padding: 16px;
+        background: var(--bg);
+      }
+      .event-card.open .event-body {
+        display: block;
+      }
+
+      .event-inner {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      @media (max-width: 768px) {
+        .event-inner {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .panel-lbl {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--muted);
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+      .code {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 12px;
+        font-family: var(--font-mono);
+        font-size: 0.8rem;
+        line-height: 1.5;
+        white-space: pre;
+        overflow-x: auto;
+        color: var(--text);
+      }
+
+      /* Syntax Highlighting */
+      .k {
+        color: #ff7b72;
+      } /* Keyword */
+      .s {
+        color: #a5d6ff;
+      } /* String */
+      .n {
+        color: #79c0ff;
+      } /* Number */
+      .c {
+        color: #8b949e;
+      } /* Comment */
+      .fn {
+        color: #d2a8ff;
+      } /* Function */
+
+      .note-box {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-left: 3px solid var(--accent);
+        background: var(--surface);
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .note-box strong {
+        color: var(--text-strong);
+        font-weight: 600;
+      }
+
+      /* TABS */
+      .tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 16px;
+      }
+      .tab {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+        color: var(--muted);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+      }
+      .tab.active {
+        color: var(--text-strong);
+        border-bottom-color: var(--accent);
+        font-weight: 500;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+
+      footer {
+        padding: 40px 0;
+        margin-top: 60px;
+        border-top: 1px solid var(--border);
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-family: var(--font-mono);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <div>
+          <div class="logo">RoxStar Distributed Architecture</div>
+          <div class="logo-sub">
+            Socket.IO Real-Time Protocol Specification v2.0
+          </div>
+        </div>
+        <div class="live-badge">
+          <div class="live-dot"></div>
+          Status: Production Ready
+        </div>
+      </header>
+
+      <div class="section">
+        <div class="sec-title">Transport Strategy & Delivery Guarantees</div>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Transport Fallbacks</h3>
+            <p>
+              <strong>Default:</strong> WebSocket (<code>wss://</code>).<br /><strong
+                >Fallback:</strong
+              >
+              HTTP long-polling.<br /><em>Note:</em> React Native clients
+              strictly force WebSockets to prevent polling latency overhead on
+              mobile networks.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Event Acknowledgements (ACK)</h3>
+            <p>
+              Fire-and-forget is disabled for critical mutations.
+              Client-to-server events (e.g., room joins) implement callback ACKs
+              to guarantee delivery and trigger retry logic if failed.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Idempotency & Flood Control</h3>
+            <p>
+              The server enforces idempotency. Redundant events caused by
+              network retries (e.g., joining a room twice) are deduplicated.
+              Strict per-socket rate limiting prevents event-loop blocking under
+              high concurrency.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-title">Security & Connection Lifecycle</div>
+        <div class="grid-3">
+          <div class="card">
+            <h3>Handshake Authentication</h3>
+            <p>
+              Connections are rejected at the TCP level if the RS256 JWT payload
+              is missing or invalid. Tokens are verified once during the
+              handshake, completely isolating the socket layer from
+              unauthenticated traffic.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Payload Validation & Anti-Spoofing</h3>
+            <p>
+              Client payloads are strictly sanitized. User identities (e.g.,
+              <code>userId</code>, <code>userName</code>) are attached to the
+              socket instance server-side, preventing clients from spoofing
+              messages as other users.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Heartbeat (Ping/Pong)</h3>
+            <p>
+              A continuous 25s ping/pong interval guarantees connection health.
+              Stale connections (e.g., ghost users who hard-closed the app) are
+              aggressively swept and purged from presence maps.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-title">Protocol Reference: Client → Server</div>
+        <div class="event-grid">
+          <div class="event-card" id="e-join">
+            <div class="event-header" onclick="tog('e-join')">
+              <span class="direction-badge">C → S</span>
+              <span class="event-name">join:room</span>
+              <span class="event-desc"
+                >Subscribe to a game. Implements ACK delivery guarantee.</span
+              >
+            </div>
+            <div class="event-body">
+              <div class="event-inner">
+                <div>
+                  <div class="panel-lbl">Emit Payload (With ACK)</div>
+                  <div class="code">
+                    <span class="fn">socket</span>.emit(<span class="s"
+                      >'join:room'</span
+                    >, <span class="s">'69f34a5af5...'</span>, (ack) => {
+                    <span class="k">if</span> (!ack.success) {
+                    <span class="c"
+                      >// Implement retry / exponential backoff</span
+                    >
+                    console.error(ack.error); } });
+                  </div>
+                  <div class="note-box">
+                    Idempotent. Joining a room multiple times via network
+                    retries will not duplicate presence data.
+                  </div>
+                </div>
+                <div>
+                  <div class="panel-lbl">Server Triggers</div>
+                  <div class="code">
+                    <span class="c">// 1. Unicast to joiner:</span>
+                    <span class="s">'chat:history'</span>
+                    <span class="c">// Last 50 buffered messages</span>
+
+                    <span class="c">// 2. Broadcast to room:</span>
+                    <span class="s">'room:joined'</span>
+                    <span class="c">// Appends to viewer count</span>
+                    <span class="s">'room:presence'</span>
+                    <span class="c">// Full active roster</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="event-card" id="e-chat">
+            <div class="event-header" onclick="tog('e-chat')">
+              <span class="direction-badge">C → S</span>
+              <span class="event-name">chat:message</span>
+              <span class="event-desc"
+                >Submit chat payload. Protected by server backpressure.</span
+              >
+            </div>
+            <div class="event-body">
+              <div class="event-inner">
+                <div>
+                  <div class="panel-lbl">Emit Payload</div>
+                  <div class="code">
+                    <span class="fn">socket</span>.emit(<span class="s"
+                      >'chat:message'</span
+                    >, { <span class="k">roomId</span>:
+                    <span class="s">'69f34a5a...'</span>,
+                    <span class="k">messageId</span>:
+                    <span class="s">'uuid-v4-dedup-key'</span>,
+                    <span class="k">message</span>:
+                    <span class="s">'Game on.'</span> });
+                  </div>
+                  <div class="note-box">
+                    <strong>Security constraints:</strong> HTML stripped. Max
+                    length 200 chars. 30 requests/minute to prevent event-loop
+                    blocking.
+                  </div>
+                </div>
+                <div>
+                  <div class="panel-lbl">Broadcast to Room</div>
+                  <div class="code">
+                    { <span class="k">"userId"</span>:
+                    <span class="s">"69f325d5..."</span>,
+                    <span class="k">"userName"</span>:
+                    <span class="s">"User123"</span>,
+                    <span class="k">"message"</span>:
+                    <span class="s">"Game on."</span>,
+                    <span class="k">"timestamp"</span>:
+                    <span class="n">1746003600000</span> }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="event-card" id="e-status">
+            <div class="event-header" onclick="tog('e-status')">
+              <span class="direction-badge">C → S</span>
+              <span class="event-name">game:state:sync</span>
+              <span class="event-desc"
+                >Request active state bypass for connection recovery.</span
+              >
+            </div>
+            <div class="event-body">
+              <div class="event-inner">
+                <div>
+                  <div class="panel-lbl">Emit Payload</div>
+                  <div class="code">
+                    <span class="fn">socket</span>.emit(<span class="s"
+                      >'game:state:sync'</span
+                    >, <span class="s">'69f34a5a...'</span>);
+                  </div>
+                  <div class="note-box">
+                    Critical for mobile clients. Utilized immediately
+                    post-reconnection to sync UI state (viewer count, latest
+                    chats) without executing an expensive HTTP GET request.
+                  </div>
+                </div>
+                <div>
+                  <div class="panel-lbl">Response Payload (Unicast)</div>
+                  <div class="code">
+                    { <span class="k">"spinWheelId"</span>:
+                    <span class="s">"69f34a5a..."</span>,
+                    <span class="k">"viewerCount"</span>:
+                    <span class="n">3</span>, <span class="k">"viewers"</span>:
+                    [...], <span class="k">"recentChat"</span>: [...] }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-title">Protocol Reference: Server → Client</div>
+        <div class="event-grid">
+          <div class="event-card" id="e-gstart">
+            <div class="event-header" onclick="tog('e-gstart')">
+              <span class="direction-badge">S → C</span>
+              <span class="event-name">game:started:v1</span>
+              <span class="event-desc"
+                >Signals initiation of the automated elimination loop.</span
+              >
+            </div>
+            <div class="event-body">
+              <div class="event-inner">
+                <div>
+                  <div class="panel-lbl">Client Listener</div>
+                  <div class="code">
+                    <span class="fn">socket</span>.on(<span class="s"
+                      >'game:started:v1'</span
+                    >, (data) => {
+                    <span class="c">// Lock UI, disable joins</span>
+                    });
+                  </div>
+                  <div class="note-box">
+                    <strong>Versioning Strategy:</strong> S2C events utilize
+                    semantic versioning (v1, v2) to ensure backward
+                    compatibility with deprecated mobile app versions.
+                  </div>
+                </div>
+                <div>
+                  <div class="panel-lbl">Payload</div>
+                  <div class="code">
+                    { <span class="k">"spinWheelId"</span>:
+                    <span class="s">"69f34a5a..."</span>,
+                    <span class="k">"participantCount"</span>:
+                    <span class="n">3</span> }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="event-card" id="e-gelim">
+            <div class="event-header" onclick="tog('e-gelim')">
+              <span class="direction-badge">S → C</span>
+              <span class="event-name">game:elimination</span>
+              <span class="event-desc"
+                >Interval broadcast (7s) indicating state mutation.</span
+              >
+            </div>
+            <div class="event-body">
+              <div class="event-inner">
+                <div>
+                  <div class="panel-lbl">Client Listener</div>
+                  <div class="code">
+                    <span class="fn">socket</span>.on(<span class="s"
+                      >'game:elimination'</span
+                    >, (data) => {
+                    <span class="c">// Render elimination animation</span>
+                    });
+                  </div>
+                </div>
+                <div>
+                  <div class="panel-lbl">Payload</div>
+                  <div class="code">
+                    { <span class="k">"eliminatedUserId"</span>:
+                    <span class="s">"69f325d5..."</span>,
+                    <span class="k">"remaining"</span>:
+                    <span class="n">2</span> }
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-title">Handling Distributed Failure Scenarios</div>
+        <div class="grid-3">
+          <div class="card warning">
+            <h3>Reconnect Storms (DDoS)</h3>
+            <p>
+              If the backend restarts, 10,000 clients attempting to reconnect
+              instantly will crash the Auth service.
+              <strong>Mitigation:</strong> Clients must implement randomized
+              exponential backoff (<code>reconnectionDelayMax: 5000</code>).
+            </p>
+          </div>
+          <div class="card warning">
+            <h3>Network Drop Mid-Game</h3>
+            <p>
+              Mobile users frequently traverse tunnels.
+              <strong>Mitigation:</strong> Server buffers events for 2 minutes
+              via <code>connectionStateRecovery</code>. If downtime exceeds 2
+              minutes, the client falls back to <code>game:state:sync</code>.
+            </p>
+          </div>
+          <div class="card warning">
+            <h3>Message Ordering Desync</h3>
+            <p>
+              TCP guarantees order per-connection. However, across distributed
+              shards, global order is lost. <strong>Mitigation:</strong> Future
+              scale-outs require Redis Pub/Sub integration to guarantee
+              chronologically consistent broadcasting.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-title">Client Implementation Snippets</div>
+        <div class="tabs">
+          <div class="tab active" onclick="switchTab('js')">
+            Browser / Node.js
+          </div>
+          <div class="tab" onclick="switchTab('rn')">React Native / Expo</div>
+        </div>
+
+        <div id="tab-js" class="tab-content active">
+          <div class="code" style="padding: 20px">
+            <span class="k">import</span> { io } <span class="k">from</span>
+            <span class="s">'socket.io-client'</span>;
+
+            <span class="k">const</span> socket = io(<span class="s"
+              >'wss://api.domain.com'</span
+            >, { auth: { token: <span class="s">'JWT_ACCESS_TOKEN'</span> },
+            reconnection: <span class="k">true</span>, reconnectionAttempts:
+            <span class="n">10</span>, reconnectionDelay:
+            <span class="n">1000</span>, reconnectionDelayMax:
+            <span class="n">5000</span>,
+            <span class="c">// Exponential backoff protection</span> });
+            socket.on(<span class="s">'connect'</span>, () => {
+            socket.emit(<span class="s">'join:room'</span>, GAME_ID, (ack) => {
+            <span class="k">if</span> (!ack?.success) console.error(<span
+              class="s"
+              >"Join delivery failed"</span
+            >); }); });
+
+            <span class="c">// State Recovery</span>
+            socket.on(<span class="s">'reconnect'</span>, () => {
+            socket.emit(<span class="s">'join:room'</span>, GAME_ID);
+            socket.emit(<span class="s">'game:state:sync'</span>, GAME_ID); });
+
+            <span class="c">// Cleanup presence</span>
+            socket.on(<span class="s">'disconnect'</span>, (reason) => {
+            <span class="k">if</span> (reason ===
+            <span class="s">"io server disconnect"</span>) socket.connect();
+            <span class="c">// Manual retry</span> console.log(<span class="s"
+              >`Disconnected: ${reason}`</span
+            >); });
+          </div>
+        </div>
+
+        <div id="tab-rn" class="tab-content">
+          <div class="code" style="padding: 20px">
+            <span class="k">import</span> { useEffect, useRef }
+            <span class="k">from</span> <span class="s">'react'</span>;
+            <span class="k">import</span> { AppState }
+            <span class="k">from</span> <span class="s">'react-native'</span>;
+            <span class="k">import</span> { io, Socket }
+            <span class="k">from</span>
+            <span class="s">'socket.io-client'</span>;
+
+            <span class="k">export function</span> useGameSocket(roomId, token)
+            { <span class="k">const</span> socket = useRef(null); useEffect(()
+            => { socket.current = io(<span class="s"
+              >'wss://api.domain.com'</span
+            >, { auth: { token }, transports: [<span class="s">'websocket'</span
+            >],
+            <span class="c">// Bypass polling to reduce latency</span>
+            reconnectionDelayMax: <span class="n">5000</span>, });
+
+            <span class="k">const</span> sub = AppState.addEventListener(<span
+              class="s"
+              >'change'</span
+            >, (state) => {
+            <span class="c"
+              >// Force sync when user backgrounds then foregrounds the
+              app</span
+            >
+            <span class="k">if</span> (state ===
+            <span class="s">'active'</span>) socket.current.emit(<span class="s"
+              >'game:state:sync'</span
+            >, roomId); });
+
+            <span class="k">return</span> () => { socket.current.disconnect();
+            sub.remove(); }; }, [roomId]);
+
+            <span class="k">return</span> socket; }
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="sec-title">Architectural Limitations & Scaling</div>
+        <div class="grid-2">
+          <div class="card danger">
+            <h3>In-Memory State Bottleneck</h3>
+            <p>
+              Currently, Room Presence and Chat History are mapped in process
+              memory. This represents a critical bottleneck. If deployed behind
+              a load balancer to multiple instances, state will become
+              fragmented (User A on Instance 1 will not see User B on Instance
+              2).
+            </p>
+          </div>
+          <div class="card">
+            <h3>The Migration Path</h3>
+            <p>
+              To support horizontal scaling, the architecture must implement
+              <code>@socket.io/redis-adapter</code> for cross-node event
+              propagation. In-memory presence maps must be migrated to Redis
+              Hashes, and Chat Buffers to Redis Lists with TTL expiry.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        System Architecture Wiki · Internal API Reference · Socket.IO v2.0<br />
+        Built for scalability and fault-tolerance.
+      </footer>
+    </div>
+
+    <script>
+      function tog(id) {
+        document.getElementById(id).classList.toggle("open");
+      }
+      function switchTab(id) {
+        document
+          .querySelectorAll(".tab")
+          .forEach((t) => t.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-content")
+          .forEach((c) => c.classList.remove("active"));
+        event.target.classList.add("active");
+        document.getElementById("tab-" + id).classList.add("active");
+      }
+      document.getElementById("e-join").classList.add("open");
+      document.getElementById("e-gfin").classList.add("open");
+    </script>
+  </body>
+</html>

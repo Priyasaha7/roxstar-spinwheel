@@ -1,0 +1,358 @@
+{
+  "info": {
+    "name": "RoxStar Spin Wheel REST API (E2E Suite)",
+    "description": "# 🚀 RoxStar Spin Wheel Architecture\n\nProduction-grade REST API test suite featuring automated state management, dynamic variable capture, and negative path testing.\n\n## 🔐 Global Authentication\n- **x-api-key**: Injected automatically via Collection-Level Pre-Request Scripts.\n- **JWT Authorization**: Auto-captured during the Auth flow and stored in environment variables.\n\n## ⚙️ Execution Flow (One-Click Runnable)\n1. Run **Auth > Signin** (Auto-stores `userToken` / `adminToken`).\n2. Run **Core Flow > Create Game** (Auto-stores `spinWheelId`).\n3. Run **Core Flow > Join Game** (Executes using the dynamic ID).\n4. Run **Core Flow > Start Game**.\n\n## 📡 Status Codes & Responses\n- `200 OK`: Successful mutation.\n- `400 Bad Request`: Validation failure or Invalid State (e.g., Starting with < 3 players).\n- `401 Unauthorized`: Missing or invalid JWT.\n- `403 Forbidden`: Admin endpoint accessed by standard user.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-inject API Key to all requests to keep headers DRY",
+          "pm.request.headers.add({",
+          "    key: 'x-api-key',",
+          "    value: pm.collectionVariables.get('apiKey')",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "apiKey", "value": "YOUR_API_KEY_HERE", "type": "string" },
+    { "key": "adminToken", "value": "", "type": "string" },
+    { "key": "userToken", "value": "", "type": "string" },
+    { "key": "spinWheelId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Sign In (Capture Tokens)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "if (res.success && res.data.tokens) {",
+                  "    // Auto-store token for downstream requests",
+                  "    pm.collectionVariables.set(\"userToken\", res.data.tokens.accessToken);",
+                  "    pm.collectionVariables.set(\"adminToken\", res.data.tokens.accessToken);",
+                  "    console.log(\"Tokens successfully captured.\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@roxstar.app\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/signin",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "signin"]
+            },
+            "description": "Authenticates the user and dynamically sets the JWT variables for the rest of the collection."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. SpinWheel Core Flow",
+      "item": [
+        {
+          "name": "Create Game (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Success is true\", function () {",
+                  "    pm.expect(pm.response.json().success).to.eql(true);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data._id) {",
+                  "    // Dynamically store the new ID to automate the next steps",
+                  "    pm.collectionVariables.set(\"spinWheelId\", res.data._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/spinwheel/create",
+              "host": ["{{baseUrl}}"],
+              "path": ["spinwheel", "create"]
+            },
+            "description": "Creates a new game. The Postman test script automatically extracts the `_id` and saves it as `{{spinWheelId}}`."
+          },
+          "response": [
+            {
+              "name": "Success: Game Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{adminToken}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/spinwheel/create",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["spinwheel", "create"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"statusCode\": \"10000\",\n    \"success\": true,\n    \"message\": \"Spin wheel created successfully.\",\n    \"data\": {\n        \"_id\": \"69f34a5af5d83aa6b0b87cce\",\n        \"status\": \"waiting\",\n        \"participantsCount\": 0\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Join Game (User)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/spinwheel/{{spinWheelId}}/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["spinwheel", "{{spinWheelId}}", "join"]
+            },
+            "description": "**Idempotency Note:** This endpoint is protected against double-deduction. If a user tries to join twice due to a network retry, the DB session transaction ensures they are only charged once."
+          },
+          "response": [
+            {
+              "name": "Success: Joined",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spinwheel/{{spinWheelId}}/join",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["spinwheel", "{{spinWheelId}}", "join"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"statusCode\": \"10000\",\n    \"success\": true,\n    \"message\": \"Successfully joined the spin wheel.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Start Game (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Response is valid\", function () {",
+                  "    pm.response.to.be.ok;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/spinwheel/{{spinWheelId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["spinwheel", "{{spinWheelId}}", "start"]
+            },
+            "description": "Initiates the game loop. Validates that participant count is >= 3. If successful, shifts state to `active` and triggers WebSocket engine."
+          },
+          "response": [
+            {
+              "name": "Success: Game Started",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spinwheel/{{spinWheelId}}/start",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["spinwheel", "{{spinWheelId}}", "start"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"statusCode\": \"10000\",\n    \"success\": true,\n    \"message\": \"Spin wheel started successfully.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Edge Cases & Negative Testing",
+      "item": [
+        {
+          "name": "❌ Join Already Started Game",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test(\"Returns correct error message\", function () {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.message).to.include(\"waiting state\");",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/spinwheel/{{spinWheelId}}/join",
+              "host": ["{{baseUrl}}"],
+              "path": ["spinwheel", "{{spinWheelId}}", "join"]
+            },
+            "description": "Verifies that the state machine blocks late joins once a game has transitioned out of the WAITING state."
+          },
+          "response": [
+            {
+              "name": "Error: Not in Waiting State",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spinwheel/{{spinWheelId}}/join",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["spinwheel", "{{spinWheelId}}", "join"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"statusCode\": \"10001\",\n    \"success\": false,\n    \"message\": \"Spin wheel is not in waiting state.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "❌ Start Game (Insufficient Players)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 400\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/spinwheel/{{spinWheelId}}/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["spinwheel", "{{spinWheelId}}", "start"]
+            },
+            "description": "Verifies business logic: A game cannot start with fewer than 3 participants."
+          },
+          "response": [
+            {
+              "name": "Error: Need 3 Participants",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/spinwheel/{{spinWheelId}}/start",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["spinwheel", "{{spinWheelId}}", "start"]
+                }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
+              "body": "{\n    \"statusCode\": \"10001\",\n    \"success\": false,\n    \"message\": \"Need at least 3 participants to start.\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
