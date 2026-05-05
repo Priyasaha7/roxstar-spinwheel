@@ -20,6 +20,8 @@ app.use(
   cors({ origin: originUrl, optionsSuccessStatus: 200, credentials: true }),
 );
 app.use(cookieParser());
+
+// Use Helmet to secure HTTP headers with strict CSP; disable CSP only temporarily for local WebSocket testing (e.g., Socket.IO CDN), never in production
 app.use(helmet());
 
 // All REST routes
